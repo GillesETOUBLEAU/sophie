@@ -19,6 +19,10 @@ Thumbs.db
 # Project
 output/
 uploads/
+logs/
+
+# Secrets
+.env
 
 # Claude Code
 .claude/

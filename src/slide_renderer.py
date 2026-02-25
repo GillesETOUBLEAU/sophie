@@ -1,9 +1,15 @@
 """Génération des slides HTML et capture en PNG via Playwright."""
 
+from __future__ import annotations
+
 import datetime
 import os
 
 from jinja2 import Environment, FileSystemLoader
+
+from src.logger import get_logger
+
+log = get_logger()
 
 
 TEMPLATES_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates")
@@ -147,35 +153,43 @@ def render_slides_to_images(slides: list[dict], output_dir: str) -> list[tuple[s
     """
     from playwright.sync_api import sync_playwright
 
+    log.info(f"Rendu de {len(slides)} slides en images PNG…")
+
     env = Environment(loader=FileSystemLoader(TEMPLATES_DIR))
     os.makedirs(output_dir, exist_ok=True)
 
     css_content = _load_css()
     image_durations = []
 
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        page = browser.new_page(viewport=VIEWPORT)
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            page = browser.new_page(viewport=VIEWPORT)
 
-        for idx, slide in enumerate(slides):
-            template = env.get_template(slide["template"])
-            context = {**slide["context"], "css_content": css_content}
-            html_content = template.render(**context)
+            for idx, slide in enumerate(slides):
+                template = env.get_template(slide["template"])
+                context = {**slide["context"], "css_content": css_content}
+                html_content = template.render(**context)
 
-            html_path = os.path.join(output_dir, f"slide_{idx:03d}.html")
-            with open(html_path, "w", encoding="utf-8") as f:
-                f.write(html_content)
+                html_path = os.path.join(output_dir, f"slide_{idx:03d}.html")
+                with open(html_path, "w", encoding="utf-8") as f:
+                    f.write(html_content)
 
-            page.goto(f"file://{html_path}")
-            page.wait_for_load_state("networkidle")
+                page.goto(f"file://{html_path}")
+                page.wait_for_load_state("networkidle")
 
-            img_path = os.path.join(output_dir, f"slide_{idx:03d}.png")
-            page.screenshot(path=img_path, full_page=False)
+                img_path = os.path.join(output_dir, f"slide_{idx:03d}.png")
+                page.screenshot(path=img_path, full_page=False)
 
-            image_durations.append((img_path, slide["duration"]))
+                image_durations.append((img_path, slide["duration"]))
 
-        browser.close()
+            browser.close()
 
+    except Exception as e:
+        log.error(f"Échec du rendu Playwright : {e}")
+        raise RuntimeError(f"Le rendu des slides a échoué : {e}") from e
+
+    log.info(f"{len(image_durations)} images générées dans {output_dir}")
     return image_durations
 
 

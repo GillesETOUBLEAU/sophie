@@ -3,3 +3,5 @@ openpyxl
 jinja2
 playwright
 flask
+supabase
+python-dotenv

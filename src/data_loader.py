@@ -1,10 +1,17 @@
 """Lecture des fichiers Excel et filtrage par semaine."""
 
+from __future__ import annotations
+
 import datetime
 import glob
 import os
 
 import pandas as pd
+from openpyxl import load_workbook
+
+from src.logger import get_logger
+
+log = get_logger()
 
 
 def find_excel_files(data_dir: str) -> dict:
@@ -36,9 +43,44 @@ def find_excel_files(data_dir: str) -> dict:
     return result
 
 
-def load_projects(excel_path: str) -> pd.DataFrame:
+def validate_excel(excel_path: str, label: str = "Excel") -> None:
+    """
+    Valide qu'un fichier Excel est exploitable.
+    Lève ValueError avec un message clair si ce n'est pas le cas.
+    """
+    if not os.path.exists(excel_path):
+        raise FileNotFoundError(f"Fichier {label} introuvable : {excel_path}")
+
+    try:
+        wb = load_workbook(excel_path, read_only=True)
+    except Exception:
+        raise ValueError(
+            f"Le fichier {label} n'est pas un fichier Excel valide. "
+            "Vérifiez qu'il s'agit bien d'un .xlsx."
+        )
+
+    sheet_names = wb.sheetnames
+    wb.close()
+
+    if len(sheet_names) < 2:
+        raise ValueError(
+            f"Le fichier {label} n'a qu'une seule feuille ({sheet_names[0]}). "
+            "Il en faut au moins 2 (la feuille de données détaillées est attendue en position 2)."
+        )
+
+    log.info(f"Fichier {label} validé : {len(sheet_names)} feuilles — {', '.join(sheet_names)}")
+
+
+def load_projects(excel_path: str, label: str = "Excel") -> pd.DataFrame:
     """Charge la feuille de données détaillées (sheet index 1)."""
-    df = pd.read_excel(excel_path, sheet_name=1)
+    validate_excel(excel_path, label)
+
+    try:
+        df = pd.read_excel(excel_path, sheet_name=1)
+    except Exception as e:
+        raise ValueError(
+            f"Impossible de lire la feuille 2 du fichier {label} : {e}"
+        )
 
     # Colonnes d'intérêt
     cols_needed = [
@@ -48,7 +90,19 @@ def load_projects(excel_path: str) -> pd.DataFrame:
         "DATE DÉBUT", "DATE FIN", "DATE DE RENDU DU DOSSIER",
         "VILLE EXPLOITATION", "NOMBRE DE GUESTS",
     ]
+
+    # Vérifier la colonne obligatoire
+    if "STATUT" not in df.columns:
+        raise ValueError(
+            f"Colonne 'STATUT' manquante dans le fichier {label}. "
+            f"Colonnes trouvées : {', '.join(df.columns[:10])}..."
+        )
+
     existing = [c for c in cols_needed if c in df.columns]
+    missing = [c for c in cols_needed if c not in df.columns]
+    if missing:
+        log.warning(f"Fichier {label} — colonnes absentes (ignorées) : {', '.join(missing)}")
+
     df = df[existing].copy()
 
     # Normaliser les dates : convertir time(0,0) en NaT
@@ -58,6 +112,8 @@ def load_projects(excel_path: str) -> pd.DataFrame:
 
     # Filtrer les lignes vides (STATUT == 0 ou NaN)
     df = df[df["STATUT"].apply(lambda x: isinstance(x, str) and x.strip() != "")]
+
+    log.info(f"Fichier {label} chargé : {len(df)} lignes avec un statut valide")
 
     return df
 
