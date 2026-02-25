@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Webapp Sophie — Génération de vidéos Statistiques Écrans.
+Webapp Sophie — Génération de vidéos L'App de Sophie.
 
 Sophie upload ses fichiers Excel, choisit la semaine,
 et récupère la vidéo MP4 générée automatiquement.
@@ -273,7 +273,7 @@ LOGIN_TEMPLATE = """
 </head>
 <body>
     <div class="header">
-        <h1>Statistiques Écrans</h1>
+        <h1>L'App de Sophie</h1>
         <p>WMH Project — Connexion</p>
     </div>
     <div class="container">
@@ -308,12 +308,12 @@ MAIN_TEMPLATE = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sophie — Statistiques Écrans</title>
+    <title>Sophie — L'App de Sophie</title>
     <style>""" + COMMON_CSS + """</style>
 </head>
 <body>
     <div class="header">
-        <h1>Statistiques Écrans</h1>
+        <h1>L'App de Sophie</h1>
         <p>WMH Project — Génération automatique de vidéos</p>
     </div>
     {% if user_email %}
