@@ -560,5 +560,6 @@ def download_video(filename):
 
 
 if __name__ == "__main__":
-    log.info("Sophie Webapp démarrée sur http://localhost:8080")
-    app.run(host="0.0.0.0", port=8080, debug=False)
+    port = int(os.environ.get("PORT", 8080))
+    log.info(f"Sophie Webapp démarrée sur http://localhost:{port}")
+    app.run(host="0.0.0.0", port=port, debug=False)
