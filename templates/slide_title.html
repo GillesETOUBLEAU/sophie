@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <style>{{ css_content }}</style>
+</head>
+<body>
+<div class="slide-fullscreen">
+    {% if image_path %}
+    <img src="{{ image_path }}" alt="{{ alt_text }}">
+    {% else %}
+    <div class="branded-text">
+        {% if logo_path %}<img src="{{ logo_path }}" class="logo-img" alt="WMH Project">{% endif %}
+        <div class="title-separator"></div>
+        <p>{{ subtitle }}</p>
+    </div>
+    <div class="footer">©WMH Project — {{ year }}</div>
+    {% endif %}
+</div>
+</body>
+</html>

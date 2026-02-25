@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <style>{{ css_content }}</style>
+</head>
+<body>
+<div class="slide-cards">
+    <div class="header-bar">
+        {% if logo_path %}<img src="{{ logo_path }}" class="header-logo" alt="WMH Project">{% endif %}
+    </div>
+    <div class="slide-title-bar">
+        <div>
+            <h3>{{ section_title }}</h3>
+            <div class="title-separator"></div>
+        </div>
+        <span class="page-indicator">{{ page_current }}/{{ page_total }}</span>
+    </div>
+    <div class="cards-grid {% if cards|length <= 2 %}single-row{% endif %}">
+        {% for card in cards %}
+        <div class="card">
+            <div class="card-header">
+                <span class="client-name">{{ card.client }}</span>
+                {% if card.toolbox %}<span class="toolbox-id">#{{ card.toolbox }}</span>{% endif %}
+            </div>
+            <div class="dossier-name">{{ card.dossier }}</div>
+            <div class="card-details">
+                {% if card.dates %}
+                <div class="detail">
+                    <span class="detail-label">Dates</span>
+                    <span class="detail-value">{{ card.dates }}</span>
+                </div>
+                {% endif %}
+                {% if card.date_rendu %}
+                <div class="detail">
+                    <span class="detail-label">Date de rendu</span>
+                    <span class="detail-value">{{ card.date_rendu }}</span>
+                </div>
+                {% endif %}
+                {% if card.lieu %}
+                <div class="detail">
+                    <span class="detail-label">Lieu</span>
+                    <span class="detail-value">{{ card.lieu }}</span>
+                </div>
+                {% endif %}
+                {% if card.lead_conseil %}
+                <div class="detail">
+                    <span class="detail-label">Lead Conseil</span>
+                    <span class="detail-value">{{ card.lead_conseil }}</span>
+                </div>
+                {% endif %}
+                {% if card.lead_projet %}
+                <div class="detail">
+                    <span class="detail-label">Lead Projet</span>
+                    <span class="detail-value">{{ card.lead_projet }}</span>
+                </div>
+                {% endif %}
+                {% if card.guests %}
+                <div class="detail">
+                    <span class="detail-label">Guests</span>
+                    <span class="detail-value">{{ card.guests }}</span>
+                </div>
+                {% endif %}
+            </div>
+            {% if card.metier %}
+            <div class="metier-badge"><span>{{ card.metier }}</span></div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    <div class="slide-footer">©WMH Project — {{ year }}</div>
+</div>
+</body>
+</html>
