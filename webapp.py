@@ -343,10 +343,10 @@ MAIN_TEMPLATE = """
             <h2>Générer une vidéo</h2>
             <div class="separator"></div>
             <form method="POST" enctype="multipart/form-data" id="genForm">
-                <label for="file_gagne">Fichier « Gagné » (.xlsx) — événements qui jouent</label>
+                <label for="file_gagne">Fichier événements (.xlsx) — Probable, CA et CA prévisionnel</label>
                 <input type="file" name="file_gagne" id="file_gagne" accept=".xlsx" required>
 
-                <label for="file_pipe">Fichier « Pipe » (.xlsx) — recos à rendre</label>
+                <label for="file_pipe">Fichier recos (.xlsx) — Spéculatif</label>
                 <input type="file" name="file_pipe" id="file_pipe" accept=".xlsx" required>
 
                 <label for="ref_date">Semaine de référence</label>

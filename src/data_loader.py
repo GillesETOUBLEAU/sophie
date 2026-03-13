@@ -13,6 +13,25 @@ from src.logger import get_logger
 
 log = get_logger()
 
+# Mapping des noms de colonnes : nouveau format → nom interne utilisé par l'app
+COLUMN_MAP = {
+    "N° Toolbox": "N° TOOLBOX",
+    "Nom du client": "NOM DU CLIENT",
+    "Nom du dossier": "NOM DU DOSSIER",
+    "Statut": "STATUT",
+    "Métier principal": "MÉTIER PRINCIPAL",
+    "Directeur Conseil": "LEAD CONSEIL",
+    "Leader Squad": "LEAD PROJET",
+    "Début": "DATE DÉBUT",
+    "Fin": "DATE FIN",
+    "Rendu": "DATE DE RENDU DU DOSSIER",
+    "Ville": "VILLE EXPLOITATION",
+    "Pax": "NOMBRE DE GUESTS",
+}
+
+# Statuts à exclure des recos (annulés / perdus)
+EXCLUDED_STATUTS = {"Annulé", "Annule", "Perdu"}
+
 
 def find_excel_files(data_dir: str) -> dict:
     """
@@ -43,6 +62,23 @@ def find_excel_files(data_dir: str) -> dict:
     return result
 
 
+def _find_data_sheet(excel_path: str, label: str) -> str | int:
+    """
+    Trouve la feuille de données dans le fichier Excel.
+    Cherche "Liste des dossiers" par nom, sinon retombe sur l'index 1.
+    """
+    try:
+        wb = load_workbook(excel_path, read_only=True)
+        sheet_names = wb.sheetnames
+        wb.close()
+    except Exception:
+        return 1
+
+    if "Liste des dossiers" in sheet_names:
+        return "Liste des dossiers"
+    return 1
+
+
 def validate_excel(excel_path: str, label: str = "Excel") -> None:
     """
     Valide qu'un fichier Excel est exploitable.
@@ -65,22 +101,37 @@ def validate_excel(excel_path: str, label: str = "Excel") -> None:
     if len(sheet_names) < 2:
         raise ValueError(
             f"Le fichier {label} n'a qu'une seule feuille ({sheet_names[0]}). "
-            "Il en faut au moins 2 (la feuille de données détaillées est attendue en position 2)."
+            "Il en faut au moins 2."
         )
 
     log.info(f"Fichier {label} validé : {len(sheet_names)} feuilles — {', '.join(sheet_names)}")
 
 
+def _apply_column_mapping(df: pd.DataFrame) -> pd.DataFrame:
+    """Renomme les colonnes du nouveau format vers le format interne."""
+    rename = {k: v for k, v in COLUMN_MAP.items() if k in df.columns}
+    if rename:
+        log.info(f"Mapping colonnes appliqué : {list(rename.keys())}")
+        df = df.rename(columns=rename)
+    return df
+
+
 def load_projects(excel_path: str, label: str = "Excel") -> pd.DataFrame:
-    """Charge la feuille de données détaillées (sheet index 1)."""
+    """Charge la feuille de données détaillées."""
     validate_excel(excel_path, label)
 
+    sheet = _find_data_sheet(excel_path, label)
+    sheet_desc = f"'{sheet}'" if isinstance(sheet, str) else f"index {sheet}"
+
     try:
-        df = pd.read_excel(excel_path, sheet_name=1)
+        df = pd.read_excel(excel_path, sheet_name=sheet)
     except Exception as e:
         raise ValueError(
-            f"Impossible de lire la feuille 2 du fichier {label} : {e}"
+            f"Impossible de lire la feuille {sheet_desc} du fichier {label} : {e}"
         )
+
+    # Appliquer le mapping des colonnes (nouveau format → format interne)
+    df = _apply_column_mapping(df)
 
     # Colonnes d'intérêt
     cols_needed = [
@@ -94,7 +145,7 @@ def load_projects(excel_path: str, label: str = "Excel") -> pd.DataFrame:
     # Vérifier la colonne obligatoire
     if "STATUT" not in df.columns:
         raise ValueError(
-            f"Colonne 'STATUT' manquante dans le fichier {label}. "
+            f"Colonne 'STATUT' (ou 'Statut') manquante dans le fichier {label}. "
             f"Colonnes trouvées : {', '.join(df.columns[:10])}..."
         )
 
@@ -113,7 +164,7 @@ def load_projects(excel_path: str, label: str = "Excel") -> pd.DataFrame:
     # Filtrer les lignes vides (STATUT == 0 ou NaN)
     df = df[df["STATUT"].apply(lambda x: isinstance(x, str) and x.strip() != "")]
 
-    log.info(f"Fichier {label} chargé : {len(df)} lignes avec un statut valide")
+    log.info(f"Fichier {label} chargé ({sheet_desc}) : {len(df)} lignes avec un statut valide")
 
     return df
 
@@ -147,11 +198,14 @@ def get_week_number(reference_date: datetime.date = None) -> int:
 def filter_events_this_week(df: pd.DataFrame, reference_date: datetime.date = None) -> pd.DataFrame:
     """
     Événements qui jouent cette semaine :
-    STATUT == 'Gagné' ET l'événement chevauche la semaine courante.
+    STATUT == 'Gagné' ou 'Gagne' ET l'événement chevauche la semaine courante.
     Un événement chevauche si DATE DÉBUT <= dimanche ET DATE FIN >= lundi.
     """
     monday, sunday = get_week_bounds(reference_date)
-    gagné = df[df["STATUT"] == "Gagné"].copy()
+    gagné = df[df["STATUT"].isin(["Gagné", "Gagne"])].copy()
+
+    if "DATE DÉBUT" not in gagné.columns:
+        return gagné.iloc[0:0]
 
     has_start = gagné["DATE DÉBUT"].notna()
     mask = has_start.copy()
@@ -161,8 +215,11 @@ def filter_events_this_week(df: pd.DataFrame, reference_date: datetime.date = No
 
     # Événement finit pendant ou après le début de la semaine
     # Si DATE FIN est vide, on considère que c'est un événement d'un jour
-    has_end = gagné["DATE FIN"].notna()
-    end_ok = (has_end & (gagné["DATE FIN"] >= monday)) | (~has_end & (gagné["DATE DÉBUT"] >= monday))
+    if "DATE FIN" in gagné.columns:
+        has_end = gagné["DATE FIN"].notna()
+        end_ok = (has_end & (gagné["DATE FIN"] >= monday)) | (~has_end & (gagné["DATE DÉBUT"] >= monday))
+    else:
+        end_ok = gagné["DATE DÉBUT"] >= monday
     mask &= end_ok
 
     result = gagné[mask].sort_values("DATE DÉBUT")
@@ -172,15 +229,20 @@ def filter_events_this_week(df: pd.DataFrame, reference_date: datetime.date = No
 def filter_recos_this_week(df: pd.DataFrame, reference_date: datetime.date = None) -> pd.DataFrame:
     """
     Recos à rendre cette semaine :
-    STATUT == 'Pipe' ET DATE DE RENDU DU DOSSIER tombe dans la semaine.
+    Tous les statuts sauf Annule/Perdu, avec DATE DE RENDU DU DOSSIER dans la semaine.
     """
     monday, sunday = get_week_bounds(reference_date)
-    pipe = df[df["STATUT"] == "Pipe"].copy()
 
-    has_rendu = pipe["DATE DE RENDU DU DOSSIER"].notna()
-    mask = has_rendu & (pipe["DATE DE RENDU DU DOSSIER"] >= monday) & (pipe["DATE DE RENDU DU DOSSIER"] <= sunday)
+    if "DATE DE RENDU DU DOSSIER" not in df.columns:
+        return df.iloc[0:0]
 
-    result = pipe[mask].sort_values("DATE DE RENDU DU DOSSIER")
+    # Exclure les dossiers annulés et perdus
+    active = df[~df["STATUT"].isin(EXCLUDED_STATUTS)].copy()
+
+    has_rendu = active["DATE DE RENDU DU DOSSIER"].notna()
+    mask = has_rendu & (active["DATE DE RENDU DU DOSSIER"] >= monday) & (active["DATE DE RENDU DU DOSSIER"] <= sunday)
+
+    result = active[mask].sort_values("DATE DE RENDU DU DOSSIER")
     return result
 
 
