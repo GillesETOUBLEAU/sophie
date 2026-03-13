@@ -116,7 +116,7 @@ def main():
     # 5. Assembler la vidéo
     output_path = os.path.join(
         OUTPUT_DIR,
-        f"Semaine {week_num:02d} - Statistiques ecrans.mp4",
+        f"Semaine_{week_num:02d}_Statistiques_ecrans.mp4",
     )
     build_video(image_durations, output_path)
 

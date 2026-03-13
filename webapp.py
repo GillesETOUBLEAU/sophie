@@ -488,7 +488,7 @@ def index():
             tmp_dir = tempfile.mkdtemp(prefix="sophie_slides_")
             image_durations = render_slides_to_images(slides, tmp_dir)
 
-            video_filename = f"Semaine {week_num:02d} - Statistiques ecrans.mp4"
+            video_filename = f"Semaine_{week_num:02d}_Statistiques_ecrans.mp4"
             output_path = os.path.join(OUTPUT_DIR, video_filename)
             build_video(image_durations, output_path)
 
