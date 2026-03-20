@@ -198,11 +198,11 @@ def get_week_number(reference_date: datetime.date = None) -> int:
 def filter_events_this_week(df: pd.DataFrame, reference_date: datetime.date = None) -> pd.DataFrame:
     """
     Événements qui jouent cette semaine :
-    STATUT == 'Gagné' ou 'Gagne' ET l'événement chevauche la semaine courante.
+    STATUT in ('Gagné', 'Gagne', 'Signé', 'Signe') ET l'événement chevauche la semaine courante.
     Un événement chevauche si DATE DÉBUT <= dimanche ET DATE FIN >= lundi.
     """
     monday, sunday = get_week_bounds(reference_date)
-    gagné = df[df["STATUT"].isin(["Gagné", "Gagne"])].copy()
+    gagné = df[df["STATUT"].isin(["Gagné", "Gagne", "Signé", "Signe"])].copy()
 
     if "DATE DÉBUT" not in gagné.columns:
         return gagné.iloc[0:0]
