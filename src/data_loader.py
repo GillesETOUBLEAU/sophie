@@ -198,8 +198,7 @@ def get_week_number(reference_date: datetime.date = None) -> int:
 def filter_events_this_week(df: pd.DataFrame, reference_date: datetime.date = None) -> pd.DataFrame:
     """
     Événements qui jouent cette semaine :
-    STATUT in ('Gagné', 'Gagne', 'Signé', 'Signe') ET l'événement chevauche la semaine courante.
-    Un événement chevauche si DATE DÉBUT <= dimanche ET DATE FIN >= lundi.
+    STATUT in ('Gagné', 'Gagne', 'Signé', 'Signe') ET DATE DÉBUT tombe dans la semaine.
     """
     monday, sunday = get_week_bounds(reference_date)
     gagné = df[df["STATUT"].isin(["Gagné", "Gagne", "Signé", "Signe"])].copy()
@@ -208,19 +207,7 @@ def filter_events_this_week(df: pd.DataFrame, reference_date: datetime.date = No
         return gagné.iloc[0:0]
 
     has_start = gagné["DATE DÉBUT"].notna()
-    mask = has_start.copy()
-
-    # Événement commence avant ou pendant la semaine
-    mask &= gagné["DATE DÉBUT"] <= sunday
-
-    # Événement finit pendant ou après le début de la semaine
-    # Si DATE FIN est vide, on considère que c'est un événement d'un jour
-    if "DATE FIN" in gagné.columns:
-        has_end = gagné["DATE FIN"].notna()
-        end_ok = (has_end & (gagné["DATE FIN"] >= monday)) | (~has_end & (gagné["DATE DÉBUT"] >= monday))
-    else:
-        end_ok = gagné["DATE DÉBUT"] >= monday
-    mask &= end_ok
+    mask = has_start & (gagné["DATE DÉBUT"] >= monday) & (gagné["DATE DÉBUT"] <= sunday)
 
     result = gagné[mask].sort_values("DATE DÉBUT")
     return result
