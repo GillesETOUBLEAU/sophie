@@ -297,6 +297,26 @@ html, body {
     white-space: nowrap;
 }
 
+.card .squad-section {
+    margin-top: 4px;
+}
+
+.card .squad-names {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 2px;
+}
+
+.card .squad-name {
+    font-size: 10px;
+    font-weight: 400;
+    color: var(--wmh-gray-dark);
+    background: var(--wmh-gray-light);
+    padding: 2px 8px;
+    border-radius: 2px;
+}
+
 .card .metier-badge {
     margin-top: auto;
     padding-top: 8px;

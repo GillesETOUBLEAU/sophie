@@ -62,6 +62,14 @@
                 </div>
                 {% endif %}
             </div>
+            {% if card.squad %}
+            <div class="squad-section">
+                <span class="detail-label">Squad</span>
+                <div class="squad-names">
+                    {% for name in card.squad %}<span class="squad-name">{{ name }}</span>{% endfor %}
+                </div>
+            </div>
+            {% endif %}
             {% if card.metier %}
             <div class="metier-badge"><span>{{ card.metier }}</span></div>
             {% endif %}

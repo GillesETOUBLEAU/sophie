@@ -22,6 +22,7 @@ COLUMN_MAP = {
     "Métier principal": "MÉTIER PRINCIPAL",
     "Directeur Conseil": "LEAD CONSEIL",
     "Leader Squad": "LEAD PROJET",
+    "Composition du squad": "COMPOSITION DU SQUAD",
     "Début": "DATE DÉBUT",
     "Fin": "DATE FIN",
     "Rendu": "DATE DE RENDU DU DOSSIER",
@@ -137,7 +138,7 @@ def load_projects(excel_path: str, label: str = "Excel") -> pd.DataFrame:
     cols_needed = [
         "N° TOOLBOX", "NOM DU CLIENT", "NOM DU DOSSIER", "STATUT",
         "MÉTIER PRINCIPAL", "LEAD CONSEIL", "LEAD PROJET",
-        "LEAD PRODUCTION", "LEAD LOGISTIQUE",
+        "LEAD PRODUCTION", "LEAD LOGISTIQUE", "COMPOSITION DU SQUAD",
         "DATE DÉBUT", "DATE FIN", "DATE DE RENDU DU DOSSIER",
         "VILLE EXPLOITATION", "NOMBRE DE GUESTS",
     ]
@@ -233,6 +234,29 @@ def filter_recos_this_week(df: pd.DataFrame, reference_date: datetime.date = Non
     return result
 
 
+def _parse_squad(val) -> list[str]:
+    """Parse squad composition into a list of names.
+
+    Handles comma-separated, slash-separated, and space-separated
+    'Firstname LASTNAME' patterns found in the Excel data.
+    """
+    if pd.isna(val) or val == 0 or val == "0" or not isinstance(val, str):
+        return []
+    import re
+    # First split by comma or slash
+    parts = re.split(r'[,/]', val)
+    names = []
+    for part in parts:
+        part = part.strip()
+        if not part:
+            continue
+        # Split 'Firstname LASTNAME Firstname LASTNAME' by detecting
+        # an uppercase word followed by a capitalized (non-uppercase) first name
+        sub = re.split(r'(?<=[A-ZÀ-ÖÙ-Ü]{2})\s+(?=[A-ZÀ-ÖÙ-Ü][a-zà-öù-ü])', part)
+        names.extend(s.strip() for s in sub if s.strip())
+    return names
+
+
 def format_event_card(row: pd.Series) -> dict:
     """Formate une ligne en dictionnaire pour le template de carte."""
     def fmt_date(d):
@@ -261,6 +285,7 @@ def format_event_card(row: pd.Series) -> dict:
         "dates": dates,
         "lead_conseil": clean(row.get("LEAD CONSEIL", "")),
         "lead_projet": clean(row.get("LEAD PROJET", "")),
+        "squad": _parse_squad(row.get("COMPOSITION DU SQUAD", "")),
         "lieu": clean(row.get("VILLE EXPLOITATION", "")),
         "guests": clean(row.get("NOMBRE DE GUESTS", "")),
         "metier": clean(row.get("MÉTIER PRINCIPAL", "")),
@@ -286,6 +311,7 @@ def format_reco_card(row: pd.Series) -> dict:
         "date_rendu": fmt_date(row.get("DATE DE RENDU DU DOSSIER")),
         "lead_conseil": clean(row.get("LEAD CONSEIL", "")),
         "lead_projet": clean(row.get("LEAD PROJET", "")),
+        "squad": _parse_squad(row.get("COMPOSITION DU SQUAD", "")),
         "lieu": clean(row.get("VILLE EXPLOITATION", "")),
         "guests": clean(row.get("NOMBRE DE GUESTS", "")),
         "metier": clean(row.get("MÉTIER PRINCIPAL", "")),
