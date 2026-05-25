@@ -16,7 +16,7 @@
         </div>
         <span class="page-indicator">{{ page_current }}/{{ page_total }}</span>
     </div>
-    <div class="cards-grid {% if cards|length <= 2 %}single-row{% endif %}">
+    <div class="cards-grid {% if cards|length <= 4 %}single-row{% endif %}">
         {% for card in cards %}
         <div class="card">
             <div class="card-header">

@@ -28,6 +28,8 @@ from flask import (
 from werkzeug.utils import secure_filename
 
 from src.data_loader import (
+    SHEET_PATTERNS,
+    list_sheets,
     load_projects,
     filter_events_this_week,
     filter_recos_this_week,
@@ -255,6 +257,35 @@ COMMON_CSS = """
         letter-spacing: 0.5px;
     }
     .nav-bar a:hover { color: var(--white); }
+    .howto {
+        font-size: 14px;
+        line-height: 1.55;
+        color: var(--gray-dark);
+    }
+    .howto p { margin-bottom: 10px; }
+    .howto p:last-child { margin-bottom: 0; }
+    .howto ol, .howto ul {
+        margin: 8px 0 12px 22px;
+    }
+    .howto li { margin-bottom: 6px; }
+    .howto code {
+        background: var(--gray-light);
+        border: 1px solid var(--gray-medium);
+        border-radius: 3px;
+        padding: 1px 6px;
+        font-size: 12.5px;
+        font-family: 'SF Mono', Menlo, Consolas, monospace;
+        color: var(--black);
+    }
+    .howto strong { color: var(--black); }
+    .howto em { font-style: italic; color: var(--gray-dark); }
+    .howto-tip {
+        margin-top: 12px;
+        padding: 10px 12px;
+        background: var(--gray-light);
+        border-left: 3px solid var(--black);
+        font-size: 13px;
+    }
 """
 
 
@@ -340,13 +371,50 @@ MAIN_TEMPLATE = """
         {% endif %}
 
         <div class="card">
+            <h2>Mode d'emploi</h2>
+            <div class="separator"></div>
+            <div class="howto">
+                <p>L'app attend <strong>deux exports HubSpot</strong> au format <code>.xlsx</code> :</p>
+                <ol>
+                    <li>
+                        <strong>Nouvelles signatures (J-7)</strong> — rapport HubSpot
+                        <em>« Entrée Gagné J-7 »</em>.<br>
+                        La feuille doit s'appeler <code>Entrée Gagné J-7</code>.
+                    </li>
+                    <li>
+                        <strong>Recos à envoyer cette semaine</strong> — rapport HubSpot
+                        <em>« Entrée reco à envoyer cette semaine »</em>.<br>
+                        La feuille doit s'appeler <code>Entrée reco à envoyer cette sem</code>.
+                    </li>
+                </ol>
+                <p><strong>Colonnes attendues</strong> (mêmes pour les 2 fichiers) :</p>
+                <ul>
+                    <li><code>BU WMH</code> — Corporate Event, D2, Institutionnel, Healthcare</li>
+                    <li><code>Nom de l'entreprise</code> — affiché en titre de carte</li>
+                    <li><code>Nom de la transaction</code> — affiché comme nom de dossier</li>
+                    <li><code>Date de début de l'exploitation</code> — pour les signatures uniquement</li>
+                    <li><code>Directeur conseil</code> — Lead Conseil</li>
+                    <li><code>Propriétaire de la transaction</code> — Lead Projet</li>
+                </ul>
+                <p>
+                    HubSpot pré-filtre les données : aucun filtre semaine n'est appliqué côté app.
+                    Exporte directement le rapport et upload tel quel.
+                </p>
+                <p class="howto-tip">
+                    Astuce : peu importe l'ordre des deux uploads — l'app détecte le rôle de
+                    chaque fichier en lisant le nom de sa feuille.
+                </p>
+            </div>
+        </div>
+
+        <div class="card">
             <h2>Générer une vidéo</h2>
             <div class="separator"></div>
             <form method="POST" enctype="multipart/form-data" id="genForm">
-                <label for="file_gagne">Fichier événements (.xlsx) — Probable, CA et CA prévisionnel</label>
+                <label for="file_gagne">Fichier <strong>Nouvelles signatures (J-7)</strong> — export HubSpot <em>Entrée Gagné J-7</em></label>
                 <input type="file" name="file_gagne" id="file_gagne" accept=".xlsx" required>
 
-                <label for="file_pipe">Fichier recos (.xlsx) — Spéculatif</label>
+                <label for="file_pipe">Fichier <strong>Recos à envoyer cette semaine</strong> — export HubSpot <em>Entrée reco à envoyer cette sem</em></label>
                 <input type="file" name="file_pipe" id="file_pipe" accept=".xlsx" required>
 
                 <label for="ref_date">Semaine de référence</label>
@@ -439,17 +507,38 @@ def index():
         ref_date_str = request.form.get("ref_date")
 
         if not file_gagne or not file_gagne.filename.endswith(".xlsx"):
-            flash("Veuillez uploader un fichier Gagné .xlsx valide.", "error")
+            flash("Veuillez uploader un fichier 'Nouvelles signatures (J-7)' .xlsx valide.", "error")
             return redirect(url_for("index"))
         if not file_pipe or not file_pipe.filename.endswith(".xlsx"):
-            flash("Veuillez uploader un fichier Pipe .xlsx valide.", "error")
+            flash("Veuillez uploader un fichier 'Recos à envoyer cette semaine' .xlsx valide.", "error")
             return redirect(url_for("index"))
 
         # Sauvegarder les fichiers uploadés
-        gagné_path = os.path.join(UPLOAD_DIR, f"{uuid.uuid4().hex}_gagne.xlsx")
-        pipe_path = os.path.join(UPLOAD_DIR, f"{uuid.uuid4().hex}_pipe.xlsx")
-        file_gagne.save(gagné_path)
-        file_pipe.save(pipe_path)
+        path_a = os.path.join(UPLOAD_DIR, f"{uuid.uuid4().hex}_a.xlsx")
+        path_b = os.path.join(UPLOAD_DIR, f"{uuid.uuid4().hex}_b.xlsx")
+        file_gagne.save(path_a)
+        file_pipe.save(path_b)
+
+        # Détecter le rôle de chaque fichier via le nom de sa feuille
+        # → l'utilisateur peut uploader dans n'importe quel ordre
+        def _detect_role(path: str) -> str | None:
+            sheets = [s.lower() for s in list_sheets(path)]
+            for role, pattern in SHEET_PATTERNS.items():
+                if any(pattern in s for s in sheets):
+                    return role
+            return None
+
+        roles = {path_a: _detect_role(path_a), path_b: _detect_role(path_b)}
+        gagné_path = next((p for p, r in roles.items() if r == "gagné"), None)
+        pipe_path = next((p for p, r in roles.items() if r == "pipe"), None)
+
+        if not gagné_path or not pipe_path:
+            flash(
+                "Impossible d'identifier les fichiers HubSpot. Vérifiez que vous avez bien "
+                "uploadé un export 'Entrée Gagné J-7' et un export 'Entrée reco à envoyer cette sem'.",
+                "error",
+            )
+            return redirect(url_for("index"))
 
         # Date de référence
         try:

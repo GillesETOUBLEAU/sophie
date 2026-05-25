@@ -15,7 +15,7 @@ log = get_logger()
 TEMPLATES_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates")
 ASSETS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets")
 
-CARDS_PER_SLIDE = 4
+CARDS_PER_SLIDE = 8
 VIEWPORT = {"width": 1280, "height": 720}
 
 # Logos WMH (chemins absolus pour file:// dans Playwright)
@@ -63,8 +63,8 @@ def build_slide_sequence(events: list[dict], recos: list[dict], week_number: int
         "context": {
             **common,
             "logo_path": LOGO_BLANC,
-            "title": "Les événements qui jouent cette semaine",
-            "subtitle": "Corporate Event & Institutionnel",
+            "title": "Les nouveaux dossiers gagnés cette semaine",
+            "subtitle": "Signatures des 7 derniers jours",
             "week_number": f"{week_number:02d}",
             "week_dates": week_dates,
         },
@@ -79,7 +79,7 @@ def build_slide_sequence(events: list[dict], recos: list[dict], week_number: int
             "context": {
                 **common,
                 "logo_path": LOGO_NOIR,
-                "section_title": "Événements de la semaine",
+                "section_title": "Nouveaux dossiers gagnés",
                 "cards": page,
                 "page_current": i + 1,
                 "page_total": len(event_pages),

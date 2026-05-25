@@ -209,9 +209,9 @@ html, body {
 .cards-grid {
     flex: 1;
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(4, 1fr);
     grid-template-rows: 1fr 1fr;
-    gap: 12px;
+    gap: 10px;
     margin-top: 8px;
 }
 
@@ -221,8 +221,8 @@ html, body {
 
 .card {
     background: var(--wmh-white);
-    border-radius: 8px;
-    padding: 18px 22px;
+    border-radius: 6px;
+    padding: 12px 14px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     display: flex;
     flex-direction: column;
@@ -233,17 +233,17 @@ html, body {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    margin-bottom: 10px;
-    padding-bottom: 8px;
-    border-bottom: 3px solid var(--wmh-black);
+    margin-bottom: 6px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid var(--wmh-black);
 }
 
 .card .client-name {
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 700;
     color: var(--wmh-black);
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.4px;
 }
 
 .card .toolbox-id {
@@ -255,11 +255,11 @@ html, body {
 }
 
 .card .dossier-name {
-    font-size: 16px;
+    font-size: 13px;
     font-weight: 700;
     color: var(--wmh-black);
-    margin-bottom: 10px;
-    line-height: 1.2;
+    margin-bottom: 8px;
+    line-height: 1.15;
     overflow: hidden;
     text-overflow: ellipsis;
     display: -webkit-box;
@@ -268,9 +268,9 @@ html, body {
 }
 
 .card .card-details {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 6px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
     flex: 1;
 }
 
@@ -280,16 +280,16 @@ html, body {
 }
 
 .card .detail-label {
-    font-size: 9px;
+    font-size: 8px;
     font-weight: 700;
     color: var(--wmh-gray-medium);
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 2px;
+    letter-spacing: 0.4px;
+    margin-bottom: 1px;
 }
 
 .card .detail-value {
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 400;
     color: var(--wmh-gray-dark);
     overflow: hidden;
@@ -319,18 +319,18 @@ html, body {
 
 .card .metier-badge {
     margin-top: auto;
-    padding-top: 8px;
+    padding-top: 6px;
 }
 
 .card .metier-badge span {
     display: inline-block;
     background: var(--wmh-black);
     color: var(--wmh-white);
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    padding: 3px 10px;
+    letter-spacing: 0.4px;
+    padding: 2px 8px;
     border-radius: 2px;
 }
 
