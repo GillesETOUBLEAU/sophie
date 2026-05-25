@@ -32,8 +32,10 @@ from src.data_loader import (
     list_sheets,
     load_projects,
     filter_events_this_week,
+    filter_expo_this_week,
     filter_recos_this_week,
     format_event_card,
+    format_expo_card,
     format_reco_card,
     get_week_number,
     get_week_bounds,
@@ -374,8 +376,13 @@ MAIN_TEMPLATE = """
             <h2>Mode d'emploi</h2>
             <div class="separator"></div>
             <div class="howto">
-                <p>L'app attend <strong>deux exports HubSpot</strong> au format <code>.xlsx</code> :</p>
+                <p>L'app attend <strong>trois exports HubSpot</strong> au format <code>.xlsx</code> :</p>
                 <ol>
+                    <li>
+                        <strong>Exploitation en cours cette semaine</strong> — rapport HubSpot
+                        <em>« Entrée Gagné — Exploitation en cours »</em>.<br>
+                        La feuille doit contenir <code>EXPLOITATION EN CO</code> dans son nom.
+                    </li>
                     <li>
                         <strong>Nouvelles signatures (J-7)</strong> — rapport HubSpot
                         <em>« Entrée Gagné J-7 »</em>.<br>
@@ -387,12 +394,12 @@ MAIN_TEMPLATE = """
                         La feuille doit s'appeler <code>Entrée reco à envoyer cette sem</code>.
                     </li>
                 </ol>
-                <p><strong>Colonnes attendues</strong> (mêmes pour les 2 fichiers) :</p>
+                <p><strong>Colonnes attendues</strong> (mêmes pour les 3 fichiers) :</p>
                 <ul>
                     <li><code>BU WMH</code> — Corporate Event, D2, Institutionnel, Healthcare</li>
                     <li><code>Nom de l'entreprise</code> — affiché en titre de carte</li>
                     <li><code>Nom de la transaction</code> — affiché comme nom de dossier</li>
-                    <li><code>Date de début de l'exploitation</code> — pour les signatures uniquement</li>
+                    <li><code>Date de début de l'exploitation</code> — pour Exploitation &amp; Signatures (absente sur Recos)</li>
                     <li><code>Directeur conseil</code> — Lead Conseil</li>
                     <li><code>Propriétaire de la transaction</code> — Lead Projet</li>
                 </ul>
@@ -401,7 +408,7 @@ MAIN_TEMPLATE = """
                     Exporte directement le rapport et upload tel quel.
                 </p>
                 <p class="howto-tip">
-                    Astuce : peu importe l'ordre des deux uploads — l'app détecte le rôle de
+                    Astuce : peu importe l'ordre des trois uploads — l'app détecte le rôle de
                     chaque fichier en lisant le nom de sa feuille.
                 </p>
             </div>
@@ -411,6 +418,9 @@ MAIN_TEMPLATE = """
             <h2>Générer une vidéo</h2>
             <div class="separator"></div>
             <form method="POST" enctype="multipart/form-data" id="genForm">
+                <label for="file_expo">Fichier <strong>Exploitation en cours cette semaine</strong> — export HubSpot <em>Entrée Gagné — Exploitation en cours</em></label>
+                <input type="file" name="file_expo" id="file_expo" accept=".xlsx" required>
+
                 <label for="file_gagne">Fichier <strong>Nouvelles signatures (J-7)</strong> — export HubSpot <em>Entrée Gagné J-7</em></label>
                 <input type="file" name="file_gagne" id="file_gagne" accept=".xlsx" required>
 
@@ -502,22 +512,27 @@ def index():
     video_info = None
 
     if request.method == "POST":
+        file_expo = request.files.get("file_expo")
         file_gagne = request.files.get("file_gagne")
         file_pipe = request.files.get("file_pipe")
         ref_date_str = request.form.get("ref_date")
 
-        if not file_gagne or not file_gagne.filename.endswith(".xlsx"):
-            flash("Veuillez uploader un fichier 'Nouvelles signatures (J-7)' .xlsx valide.", "error")
-            return redirect(url_for("index"))
-        if not file_pipe or not file_pipe.filename.endswith(".xlsx"):
-            flash("Veuillez uploader un fichier 'Recos à envoyer cette semaine' .xlsx valide.", "error")
-            return redirect(url_for("index"))
+        uploads = {
+            "Exploitation en cours": file_expo,
+            "Nouvelles signatures (J-7)": file_gagne,
+            "Recos à envoyer cette semaine": file_pipe,
+        }
+        for label, f in uploads.items():
+            if not f or not f.filename.endswith(".xlsx"):
+                flash(f"Veuillez uploader un fichier '{label}' .xlsx valide.", "error")
+                return redirect(url_for("index"))
 
         # Sauvegarder les fichiers uploadés
-        path_a = os.path.join(UPLOAD_DIR, f"{uuid.uuid4().hex}_a.xlsx")
-        path_b = os.path.join(UPLOAD_DIR, f"{uuid.uuid4().hex}_b.xlsx")
-        file_gagne.save(path_a)
-        file_pipe.save(path_b)
+        saved_paths = []
+        for f in (file_expo, file_gagne, file_pipe):
+            p = os.path.join(UPLOAD_DIR, f"{uuid.uuid4().hex}.xlsx")
+            f.save(p)
+            saved_paths.append(p)
 
         # Détecter le rôle de chaque fichier via le nom de sa feuille
         # → l'utilisateur peut uploader dans n'importe quel ordre
@@ -528,14 +543,16 @@ def index():
                     return role
             return None
 
-        roles = {path_a: _detect_role(path_a), path_b: _detect_role(path_b)}
+        roles = {p: _detect_role(p) for p in saved_paths}
+        expo_path = next((p for p, r in roles.items() if r == "expo"), None)
         gagné_path = next((p for p, r in roles.items() if r == "gagné"), None)
         pipe_path = next((p for p, r in roles.items() if r == "pipe"), None)
 
-        if not gagné_path or not pipe_path:
+        if not expo_path or not gagné_path or not pipe_path:
             flash(
                 "Impossible d'identifier les fichiers HubSpot. Vérifiez que vous avez bien "
-                "uploadé un export 'Entrée Gagné J-7' et un export 'Entrée reco à envoyer cette sem'.",
+                "uploadé les exports 'Entrée Gagné — Exploitation en cours', 'Entrée Gagné J-7' "
+                "et 'Entrée reco à envoyer cette sem'.",
                 "error",
             )
             return redirect(url_for("index"))
@@ -556,23 +573,29 @@ def index():
             monday, sunday = get_week_bounds(ref_date)
             week_dates = f"{monday.strftime('%d/%m')} — {sunday.strftime('%d/%m/%Y')}"
 
-            # Événements depuis le fichier Gagné
+            # Exploitation en cours
+            df_expo = load_projects(expo_path, label="Exploitation")
+            expo_df = filter_expo_this_week(df_expo, ref_date)
+            expo = [format_expo_card(row) for _, row in expo_df.iterrows()]
+            log.info(f"Semaine {week_num:02d} — {len(expo)} événements en exploitation")
+
+            # Nouveaux gagnés J-7
             df_gagné = load_projects(gagné_path, label="Gagné")
             events_df = filter_events_this_week(df_gagné, ref_date)
             events = [format_event_card(row) for _, row in events_df.iterrows()]
-            log.info(f"Semaine {week_num:02d} — {len(events)} événements trouvés")
+            log.info(f"Semaine {week_num:02d} — {len(events)} nouveaux gagnés trouvés")
 
-            # Recos depuis le fichier Pipe
-            df_pipe = load_projects(pipe_path, label="Pipe")
+            # Recos
+            df_pipe = load_projects(pipe_path, label="Reco")
             recos_df = filter_recos_this_week(df_pipe, ref_date)
             recos = [format_reco_card(row) for _, row in recos_df.iterrows()]
             log.info(f"Semaine {week_num:02d} — {len(recos)} recos trouvées")
 
-            if not events and not recos:
-                flash(f"Aucun événement ni reco trouvé pour la semaine {week_num:02d} ({week_dates}).", "error")
+            if not expo and not events and not recos:
+                flash(f"Aucune donnée trouvée pour la semaine {week_num:02d} ({week_dates}).", "error")
                 return redirect(url_for("index"))
 
-            slides = build_slide_sequence(events, recos, week_num, week_dates)
+            slides = build_slide_sequence(expo, events, recos, week_num, week_dates)
 
             tmp_dir = tempfile.mkdtemp(prefix="sophie_slides_")
             image_durations = render_slides_to_images(slides, tmp_dir)

@@ -24,8 +24,10 @@ COLUMN_MAP = {
 }
 
 # Patterns pour identifier le rôle de chaque fichier via le nom de sa feuille
-# (case-insensitive, substring match)
+# (case-insensitive, substring match). L'ordre importe : on teste les patterns
+# les plus spécifiques en premier.
 SHEET_PATTERNS = {
+    "expo": "exploitation en co",  # Événements en cours d'exploitation cette semaine
     "gagné": "gagné j-7",          # Nouvelles signatures des 7 derniers jours
     "pipe": "reco à envoyer",      # Recos à envoyer cette semaine
 }
@@ -53,7 +55,7 @@ def _iter_workbook_sheets(path: str):
 def find_excel_files(data_dir: str) -> dict:
     """
     Identifie les fichiers HubSpot dans le dossier en inspectant les noms
-    de feuilles. Retourne {"gagné": path, "pipe": path}.
+    de feuilles. Retourne {"expo": path, "gagné": path, "pipe": path}.
     """
     result: dict[str, str] = {}
     # Tri par mtime décroissant pour prendre le plus récent si plusieurs candidats
@@ -74,7 +76,7 @@ def find_excel_files(data_dir: str) -> dict:
     if not result:
         raise FileNotFoundError(
             f"Aucun fichier HubSpot reconnu dans {data_dir}. "
-            "Attendu : une feuille contenant 'Gagné J-7' ou 'reco à envoyer'."
+            "Attendu : une feuille contenant 'EXPLOITATION EN CO', 'Gagné J-7' ou 'reco à envoyer'."
         )
 
     return result
@@ -212,6 +214,16 @@ def filter_events_this_week(df: pd.DataFrame, reference_date: datetime.date = No
     return df
 
 
+def filter_expo_this_week(df: pd.DataFrame, reference_date: datetime.date = None) -> pd.DataFrame:
+    """
+    Pour le fichier 'EXPLOITATION EN COURS' : HubSpot a déjà filtré sur les
+    événements qui jouent cette semaine, on retourne tout, trié par date.
+    """
+    if "DATE DÉBUT" in df.columns:
+        return df.sort_values("DATE DÉBUT", na_position="last")
+    return df
+
+
 def filter_recos_this_week(df: pd.DataFrame, reference_date: datetime.date = None) -> pd.DataFrame:
     """
     Pour le fichier 'reco à envoyer cette semaine' : HubSpot a déjà filtré,
@@ -232,6 +244,11 @@ def _clean(val):
     if val == 0 or val == "0":
         return ""
     return str(val).strip()
+
+
+def format_expo_card(row: pd.Series) -> dict:
+    """Formate une ligne 'EXPLOITATION EN COURS' en carte (mêmes champs qu'un événement)."""
+    return format_event_card(row)
 
 
 def format_event_card(row: pd.Series) -> dict:

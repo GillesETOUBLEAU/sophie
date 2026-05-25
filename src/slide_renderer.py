@@ -30,7 +30,13 @@ def _common_context() -> dict:
     }
 
 
-def build_slide_sequence(events: list[dict], recos: list[dict], week_number: int, week_dates: str) -> list[dict]:
+def build_slide_sequence(
+    expo: list[dict],
+    events: list[dict],
+    recos: list[dict],
+    week_number: int,
+    week_dates: str,
+) -> list[dict]:
     """
     Construit la séquence ordonnée des slides avec leurs paramètres.
     Retourne une liste de dicts : {template, context, duration_seconds}
@@ -57,7 +63,37 @@ def build_slide_sequence(events: list[dict], recos: list[dict], week_number: int
             "duration": 3,
         })
 
-    # 2. Header événements
+    # 2. Header exploitation
+    slides.append({
+        "template": "slide_header.html",
+        "context": {
+            **common,
+            "logo_path": LOGO_BLANC,
+            "title": "Les événements qui jouent cette semaine",
+            "subtitle": "Exploitation en cours",
+            "week_number": f"{week_number:02d}",
+            "week_dates": week_dates,
+        },
+        "duration": 5,
+    })
+
+    # 3. Slides de cartes exploitation (CARDS_PER_SLIDE par page)
+    expo_pages = _paginate(expo, CARDS_PER_SLIDE)
+    for i, page in enumerate(expo_pages):
+        slides.append({
+            "template": "slide_event_cards.html",
+            "context": {
+                **common,
+                "logo_path": LOGO_NOIR,
+                "section_title": "Événements de la semaine",
+                "cards": page,
+                "page_current": i + 1,
+                "page_total": len(expo_pages),
+            },
+            "duration": 10,
+        })
+
+    # 4. Header nouveaux gagnés
     slides.append({
         "template": "slide_header.html",
         "context": {
@@ -71,7 +107,7 @@ def build_slide_sequence(events: list[dict], recos: list[dict], week_number: int
         "duration": 5,
     })
 
-    # 3. Slides de cartes événements (4 par page)
+    # 5. Slides de cartes nouveaux gagnés
     event_pages = _paginate(events, CARDS_PER_SLIDE)
     for i, page in enumerate(event_pages):
         slides.append({
